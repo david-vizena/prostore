@@ -6,7 +6,6 @@ import {
 	CardHeader,
 	CardTitle,
 } from '@/components/ui/card';
-import { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { APP_NAME } from '@/lib/constants';
