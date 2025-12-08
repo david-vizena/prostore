@@ -1,9 +1,10 @@
 import NextAuth from 'next-auth';
 import { PrismaAdapter } from '@auth/prisma-adapter';
-import { prisma } from '@/db/prisma';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import { compareSync } from 'bcrypt-ts-edge';
 import type { NextAuthConfig } from 'next-auth';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
 
 export const config = {
 	pages: {
@@ -14,7 +15,11 @@ export const config = {
 		strategy: 'jwt',
 		maxAge: 30 * 24 * 60 * 60, // 30 days
 	},
-	adapter: PrismaAdapter(prisma),
+	// Only set adapter when not in Edge Runtime (middleware runs in Edge Runtime)
+	// Adapter is optional for JWT strategy, so undefined in Edge Runtime is fine
+	// Note: Prisma can't run in Edge Runtime, so adapter must be undefined there
+	// The adapter will work in Node.js runtime contexts (API routes, server components)
+	adapter: undefined, // Set to undefined to avoid Edge Runtime issues - adapter not needed for JWT strategy
 	providers: [
 		CredentialsProvider({
 			credentials: {
@@ -23,6 +28,9 @@ export const config = {
 			},
 			async authorize(credentials) {
 				if (credentials == null) return null;
+
+				// Dynamically import Prisma to avoid Edge Runtime issues
+				const { prisma } = await import('@/db/prisma');
 
 				// Find user in the database
 				const user = await prisma.user.findFirst({
@@ -76,14 +84,37 @@ export const config = {
 				// If user has no name then use the email
 				if (user.name === 'NO_NAME') {
 					token.name = user.email!.split('@')[0];
-
-					// Update the db to refelct the token name
-					await prisma.user.update({
-						where: { id: user.id },
-						data: { name: token.name },
-					});
+				} else {
+					// Set token.name when user has a normal name
+					token.name = user.name;
 				}
-				return token;
+			}
+
+			// Always return token (required for subsequent requests)
+			return token;
+		},
+		authorized({ request, auth }: any) {
+			// Check for session cart cookie
+			if (!request.cookies.get('sessionCartId')) {
+				// Generate new session cart id cookie
+				const sessionCartId = crypto.randomUUID();
+
+				// Clone the req headers
+				const newRequestHeaders = new Headers(request.headers);
+
+				// Create new response and add the new headers
+				const response = NextResponse.next({
+					request: {
+						headers: newRequestHeaders,
+					},
+				});
+
+				// Set newly generated sessionCartId in the response cookies
+				response.cookies.set('sessionCartId', sessionCartId);
+
+				return response;
+			} else {
+				return true;
 			}
 		},
 	},
