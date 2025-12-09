@@ -1,4 +1,7 @@
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import { PrismaNeon } from '@prisma/adapter-neon';
 import { PrismaClient } from '@prisma/client';
+import ws from 'ws';
 
 // Prisma 5.22.0 doesn't fully support the adapter API from @prisma/adapter-neon@7.0.1
 // Using PrismaClient directly with the DATABASE_URL connection string works fine with Neon
