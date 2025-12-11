@@ -4,6 +4,8 @@ import {
 	insertCartSchema,
 	cartItemSchema,
 } from '@/lib/validators';
+import 'next-auth';
+import 'next-auth/jwt';
 
 export type Product = z.infer<typeof insertProductSchema> & {
 	id: string;
@@ -13,3 +15,26 @@ export type Product = z.infer<typeof insertProductSchema> & {
 
 export type Cart = z.infer<typeof insertCartSchema>;
 export type CartItem = z.infer<typeof cartItemSchema>;
+
+// Extend NextAuth types to include role
+declare module 'next-auth' {
+	interface User {
+		role?: string;
+	}
+
+	interface Session {
+		user: {
+			id: string;
+			name?: string | null;
+			email?: string | null;
+			image?: string | null;
+			role?: string;
+		};
+	}
+}
+
+declare module 'next-auth/jwt' {
+	interface JWT {
+		role?: string;
+	}
+}
